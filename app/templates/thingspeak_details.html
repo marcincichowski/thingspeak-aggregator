@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+    <article class="p-2" style="float: left; background: white; border-radius: 10px; width: calc(100vw - 370px);">
+      <h1 class="m-2">{{ thingspeaks.name }} - {{ thingspeaks.channel }}</h1>
+    </article>
+  <div class="is-flex pl-0 pt-2 pr-0 is-justify-content-space-between" style="width: calc(100vw - 370px);">
+
+    <div class="card" style="border-radius: 10px; width: 100%">
+      <header class="card-header">
+        <p class="card-header-title">
+          Wybierz pomiar do wyświetlenia
+        </p>
+      </header>
+      <div class="content">
+        <div class="card-content">
+          <div class="tabs">
+            <ul>
+              {% for measurements in thingspeaks.thingspeak_server %}
+                <li><a id="tab-chart-{{measurements.id}}" onclick="clickHandler('{{measurements.id}}')">{{measurements.abbreviation}}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% for measurements in thingspeaks.thingspeak_server %}
+            <div id="panel-block-{{measurements.id}}" class="panel-block is-hidden">
+              <div style="width: 100%; max-height: calc(100vh - 400px); text-align: center">
+                <canvas id="chart-{{measurements.id}}" class="charts" style="margin: 0 auto; width: 100%"></canvas>
+              </div>
+            </div>
+          {% endfor %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@^2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@^1"></script>
+
+<script>
+let ACTIVE_CHART_ID = -1;
+let last_date;
+
+let createChart = (measurement) => {
+  let arr = document.querySelectorAll('canvas.charts');
+  arr.forEach((element) => {
+    chart = Chart.getChart(element);
+    if(chart)
+      chart.destroy();
+  });
+
+  let ctx = document.getElementById("chart-"+measurement.id);
+
+  console.log(measurement.measurement_type[0])
+  last_date = measurement.measurement_type[measurement.measurement_type.length-1].created_date
+
+  console.log(last_date)
+  new Chart(ctx, {
+    type: "line",
+    data: {
+      datasets: [{
+        label: measurement.abbreviation,
+        data: measurement.measurement_type,
+        borderWidth: 1
+      }]
+    },
+    options: {
+      parsing: {
+        xAxisKey: 'created_date',
+        yAxisKey: 'value'
+      },
+      scales: {
+            x: {
+                type: 'time',
+            }
+      },
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        title: {
+          display: true,
+          text: measurement.abbreviation,
+        }
+      }
+    }
+  });
+}
+
+let clickHandler = (element_id) => {
+  ACTIVE_CHART_ID = element_id;
+
+  let tab = document.getElementById('tab-chart-'+element_id)
+  console.log(tab);
+
+  let panelBlock = document.getElementById('panel-block-'+element_id)
+  console.log(panelBlock);
+
+  let arr = document.querySelectorAll('div.panel-block.is-active');
+  arr.forEach((element) => {
+    element.classList.add('is-hidden');
+    element.classList.remove('is-active');
+  });
+  panelBlock.classList.remove("is-hidden");
+  panelBlock.classList.add("is-active");
+
+
+
+  $.ajax({
+      url: '/api/thingspeaks/',
+      type: 'GET',
+	})
+	.done((data, status) => {
+      data[0].thingspeak_server.forEach((element) => {
+        if(element.id == element_id)
+          createChart(element);
+
+      });
+
+	})
+	.fail(() => {
+      console.log("blad bazy/polaczenia");
+	});
+
+}
+
+let callUpdateData = (chart_id) => {
+  chart = Chart.getChart('chart-'+chart_id);
+  console.log(last_date)
+  $.ajax({
+      url: 'http://127.0.0.1:8000/api/measurement_types/'+chart_id+'/update_data/?last_date='+last_date,
+      type: 'GET',
+	})
+	.done((data, status) => {
+      console.log()
+      if(data.length != 0){
+        last_date = data[data.length-1].created_date;
+        chart.data.datasets[0].data = chart.data.datasets[0].data.concat(data);
+        chart.update();
+      }
+	})
+	.fail(() => {
+      console.log("blad bazy/polaczenia");
+	});
+
+};
+
+
+setInterval(function() {
+  if(ACTIVE_CHART_ID != -1){
+    callUpdateData(ACTIVE_CHART_ID)
+  }
+}, 10000);
+
+</script>
+{% endblock %}
