@@ -8,7 +8,7 @@
     <div class="card" style="border-radius: 10px; width: 100%">
       <header class="card-header">
         <p class="card-header-title">
-          Wybierz pomiar do wyświetlenia
+          Wybierz pomiar do wyświetlenia<br>
         </p>
       </header>
       <div class="content">
@@ -107,11 +107,11 @@ let clickHandler = (element_id) => {
 
 
   $.ajax({
-      url: '/api/thingspeaks/',
+      url: '/api/thingspeaks/{{thingspeaks.id}}',
       type: 'GET',
 	})
 	.done((data, status) => {
-      data[0].thingspeak_server.forEach((element) => {
+      data.thingspeak_server.forEach((element) => {
         if(element.id == element_id)
           createChart(element);
 

@@ -30,7 +30,12 @@ def parse_meta_field(fields_value, thingspeak):
 
 def deactivate_expired_accounts():
     thingspeaks = Thingspeaks.objects.all()
-
+    if not thingspeaks:
+        thingspeak = Thingspeaks.objects.create(channel=202842, name="L.2.7.14BT")
+        thingspeak.save()
+    if thingspeaks.count() == 1:
+        thingspeak2 = Thingspeaks.objects.create(channel=202842, name="LAB2")
+        thingspeak2.save()
     for thingspeak in thingspeaks:
 
         measurement_types = MeasurementTypes.objects.filter(thingspeak=thingspeak)
