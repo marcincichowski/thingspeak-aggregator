@@ -8,7 +8,7 @@ from .models import MeasurementTypes, Measurement, Thingspeaks
 from .serializers import UserSerializer, MeasurementTypesSerializer, MeasurementSerializers, ThingspeakSerializers
 from rest_framework import viewsets, mixins, status
 from rest_framework.response import Response
-
+from pythermalcomfort.models import pmv, pmv_ppd
 
 class UserViewSet(mixins.CreateModelMixin,
                   mixins.ListModelMixin,
@@ -67,7 +67,18 @@ class ThingspeaksViewset(mixins.CreateModelMixin,
     def retrieve(self, request,  *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        return Response({'thingspeaks': serializer.data}, template_name='thingspeak_details.html')
+
+        for item in serializer.data['thingspeak_server']:
+            if item['abbreviation'] == 'Temperatura (DHT-22) [°C]':
+                tdb = item['measurement_type'][-1]['value']
+                tr = item['measurement_type'][-1]['value']
+            elif item['abbreviation'] == 'Wilgotność względna (DHT-22) [%]':
+                rh = item['measurement_type'][-1]['value']
+        print(type(float(tdb)))
+        print(type(float(tr)))
+        print(type(float(rh)))
+        pmv_value = pmv_ppd(tdb=float(tdb), tr=float(tr), vr=0.1, rh=float(rh), met=1, clo=0.61, wme=0, standard='ISO')
+        return Response({'thingspeaks': serializer.data, 'pmv': pmv_value['pmv'], 'ppd': pmv_value['ppd']}, template_name='thingspeak_details.html')
 
     def list(self, request, *args, **kwargs):
         return Response({'thingspeaks': self.queryset},  template_name='index.html')
